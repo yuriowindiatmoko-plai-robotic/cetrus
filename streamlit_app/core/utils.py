@@ -137,12 +137,12 @@ def check_cuda_availability():
             'available': True,
             'device_name': device_name,
             'memory_gb': memory_gb,
-            'recommendation': f"GPU加速可用 - {device_name} ({memory_gb:.1f}GB)"
+            'recommendation': f"GPU acceleration available - {device_name} ({memory_gb:.1f}GB)"
         }
     else:
         return {
             'available': False,
-            'recommendation': "使用CPU处理 - 建议安装CUDA版本以获得更快速度"
+            'recommendation': "Using CPU processing - Install CUDA version for faster speed"
         }
 
 
@@ -177,43 +177,43 @@ def validate_model_files():
 
 def render_system_status():
     """Render system status dashboard"""
-    with st.expander("🔧 系统状态检查", expanded=False):
+    with st.expander("🔧 System Status Check", expanded=False):
         # Check dependencies
         missing_deps = check_dependencies()
 
-        st.markdown("### 📦 依赖检查")
+        st.markdown("### 📦 Dependency Check")
         if not missing_deps:
-            st.success("✅ 所有依赖都已正确安装")
+            st.success("✅ All dependencies are properly installed")
         else:
-            st.error("❌ 缺少以下依赖:")
+            st.error("❌ Missing dependencies:")
             for dep in missing_deps:
                 st.error(f"• {dep}")
 
         # Check CUDA
-        st.markdown("### 🚀 GPU状态")
+        st.markdown("### 🚀 GPU Status")
         cuda_info = check_cuda_availability()
         if cuda_info['available']:
             st.success(cuda_info['recommendation'])
-            st.info(f"显存: {cuda_info['memory_gb']:.1f}GB")
+            st.info(f"GPU Memory: {cuda_info['memory_gb']:.1f}GB")
         else:
             st.warning(cuda_info['recommendation'])
 
         # Check model files
-        st.markdown("### 🤖 模型文件检查")
+        st.markdown("### 🤖 Model Files Check")
         model_status = validate_model_files()
 
         if model_status['all_exist']:
-            st.success("✅ 所有预训练模型文件都存在")
+            st.success("✅ All pretrained model files exist")
         else:
-            st.error("❌ 缺少模型文件:")
+            st.error("❌ Missing model files:")
             for missing in model_status['missing_files']:
                 st.error(f"{missing}")
 
-            st.info(f"📁 模型路径: {model_status['model_path']}")
+            st.info(f"📁 Model Path: {model_status['model_path']}")
             st.markdown("""
-            **下载说明:**
-            请访问 [DATSR GitHub Releases](https://github.com/caojiezhang/DATSR/releases) 下载预训练模型,
-            并将它们放置在 `DATSR/experiments/pretrained_model/` 目录中。
+            **Download Instructions:**
+            Please visit [DATSR GitHub Releases](https://github.com/caojiezhang/DATSR/releases) to download pretrained models,
+            and place them in the `DATSR/experiments/pretrained_model/` directory.
             """)
 
 
@@ -299,24 +299,24 @@ class ErrorHandler:
 
         # Common error patterns
         if "CUDA out of memory" in error_str:
-            st.error("🚫 GPU内存不足! 请尝试:")
-            st.error("• 使用较小的图片")
-            st.error("• 切换到CPU模式")
-            st.error("• 重启应用释放内存")
+            st.error("🚫 GPU out of memory! Please try:")
+            st.error("• Use smaller images")
+            st.error("• Switch to CPU mode")
+            st.error("• Restart the app to free memory")
 
         elif "model" in error_str.lower() and "not found" in error_str.lower():
-            st.error("🤖 模型文件未找到!")
-            st.error("请检查预训练模型文件是否正确下载并放置在指定目录")
+            st.error("🤖 Model files not found!")
+            st.error("Please check if pretrained model files are correctly downloaded and placed in the specified directory")
 
         elif "Failed to load" in error_str:
-            st.error("📁 文件加载失败!")
-            st.error("请检查上传的图片格式是否正确")
+            st.error("📁 File loading failed!")
+            st.error("Please check if uploaded image formats are correct")
 
         else:
-            st.error(f"❌ 处理失败: {error_str}")
+            st.error(f"❌ Processing failed: {error_str}")
 
         if show_traceback:
-            with st.expander("查看详细错误信息"):
+            with st.expander("View detailed error information"):
                 st.code(error_str)
 
     @staticmethod
@@ -325,7 +325,7 @@ class ErrorHandler:
         is_valid, errors = validation_result
 
         if not is_valid:
-            st.error("❌ 文件验证失败:")
+            st.error("❌ File validation failed:")
             for error in errors:
                 st.error(f"• {error}")
             return False

@@ -85,22 +85,22 @@ def check_models_available():
     model_status = validate_model_files()
 
     if not model_status['all_exist']:
-        st.error("🚫 预训练模型文件缺失!")
-        st.error("请先下载预训练模型文件以使用此应用。")
+        st.error("🚫 Pretrained model files missing!")
+        st.error("Please download pretrained model files first to use this application.")
 
-        with st.expander("📥 下载说明", expanded=True):
+        with st.expander("📥 Download Instructions", expanded=True):
             st.markdown("""
-            **必需的模型文件:**
+            **Required model files:**
             - `feature_extraction.pth`
             - `restoration_mse.pth`
             - `restoration_gan.pth`
 
-            **下载步骤:**
-            1. 访问 [DATSR GitHub Releases](https://github.com/caojiezhang/DATSR/releases)
-            2. 下载预训练模型文件
-            3. 将文件放置在 `DATSR/experiments/pretrained_model/` 目录中
+            **Download steps:**
+            1. Visit [DATSR GitHub Releases](https://github.com/caojiezhang/DATSR/releases)
+            2. Download pretrained model files
+            3. Place files in the `DATSR/experiments/pretrained_model/` directory
 
-            **目录结构:**
+            **Directory structure:**
             ```
             DATSR/experiments/pretrained_model/
             ├── feature_extraction.pth
@@ -141,7 +141,7 @@ def render_main_interface():
     if ready_to_process:
         process_images(lr_file, ref_file, controls)
     elif lr_file is not None or ref_file is not None:
-        st.info("📤 请上传两张图片以开始处理")
+        st.info("📤 Please upload both images to start processing")
 
     # Display previous results if available
     display_previous_results()
@@ -151,7 +151,7 @@ def process_images(lr_file, ref_file, controls):
     """Process uploaded images with DATSR"""
     try:
         # Show processing started message
-        st.info("🚀 开始处理图片...")
+        st.info("🚀 Starting image processing...")
 
         # Create progress callback
         callback, progress_bar, status_text = create_progress_callback()
@@ -191,18 +191,18 @@ def display_previous_results():
 
     if previous_results and previous_results['success']:
         st.markdown("---")
-        st.subheader("📋 上次处理结果")
+        st.subheader("📋 Previous Processing Results")
 
         col1, col2 = st.columns([1, 4])
 
         with col1:
-            if st.button("🔄 显示上次结果", key="show_previous"):
+            if st.button("🔄 Show Previous Results", key="show_previous"):
                 save_to_session_state('show_previous_results', True)
 
         with col2:
-            st.info(f"模型: {previous_results['model_type'].upper()} | "
-                   f"处理时间: {previous_results['inference_time']:.2f}s | "
-                   f"缩放: {previous_results['scale_factor']}x")
+            st.info(f"Model: {previous_results['model_type'].upper()} | "
+                   f"Processing Time: {previous_results['inference_time']:.2f}s | "
+                   f"Scale: {previous_results['scale_factor']}x")
 
         if load_from_session_state('show_previous_results', False):
             st.session_state.viewer.render_results_section(previous_results)
@@ -213,17 +213,17 @@ def handle_errors():
     try:
         main()
     except Exception as e:
-        st.error("🚨 应用发生未预期的错误")
+        st.error("🚨 An unexpected error occurred in the application")
         ErrorHandler.handle_processing_error(e, show_traceback=True)
 
         st.markdown("---")
-        st.markdown("### 🔧 故障排除建议")
+        st.markdown("### 🔧 Troubleshooting Suggestions")
 
         suggestions = [
-            "刷新页面重试",
-            "检查网络连接",
-            "确认所有依赖都已正确安装",
-            "查看系统状态检查中的错误信息"
+            "Refresh the page and retry",
+            "Check your network connection",
+            "Ensure all dependencies are properly installed",
+            "Check error messages in the system status section"
         ]
 
         for suggestion in suggestions:
@@ -234,20 +234,20 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        st.info("应用已停止")
+        st.info("Application stopped")
     except Exception as e:
-        st.error(f"应用启动失败: {str(e)}")
+        st.error(f"Application startup failed: {str(e)}")
         st.markdown("""
-        **可能的解决方案:**
-        1. 检查所有依赖是否正确安装
-        2. 确认DATSR模块路径正确
-        3. 查看终端错误信息获取更多详情
+        **Possible solutions:**
+        1. Check if all dependencies are properly installed
+        2. Verify DATSR module paths are correct
+        3. Check terminal error messages for more details
 
-        **安装依赖:**
+        **Install dependencies:**
         ```bash
         pip install -r requirements.txt
         ```
         """)
         # Show full traceback for debugging
-        st.markdown("**详细错误信息:**")
+        st.markdown("**Detailed error information:**")
         st.code(traceback.format_exc())
