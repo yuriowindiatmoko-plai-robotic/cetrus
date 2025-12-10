@@ -326,74 +326,97 @@ class ImageProcessor:
         Returns:
             Dict with processed tensors
         """
-        # Store original dimensions
+        # Store original dimensions BEFORE any processing
         original_h_in, original_w_in = img_in.shape[:2]
         original_h_ref, original_w_ref = img_ref.shape[:2]
+
+        print(f"\n=== Image Processing Debug ===")
+        print(f"Original input size: ({original_h_in}, {original_w_in})")
+        print(f"Original ref size: ({original_h_ref}, {original_w_ref})")
+
+        # CRITICAL FIX: Check if images will produce LR smaller than minimum
+        # Calculate what LR size would be after processing
+        mod_cropped_h_in = original_h_in - (original_h_in % self.scale_factor)
+        mod_cropped_w_in = original_w_in - (original_w_in % self.scale_factor)
+        mod_cropped_h_ref = original_h_ref - (original_h_ref % self.scale_factor)
+        mod_cropped_w_ref = original_w_ref - (original_w_ref % self.scale_factor)
+
+        # Use max of both images
+        max_gt_h = max(mod_cropped_h_in, mod_cropped_h_ref)
+        max_gt_w = max(mod_cropped_w_in, mod_cropped_w_ref)
+
+        # Calculate expected LR dimensions
+        expected_lr_h = max_gt_h // self.scale_factor
+        expected_lr_w = max_gt_w // self.scale_factor
+
+        print(f"Expected LR after processing: ({expected_lr_h}, {expected_lr_w})")
+
+        # Check if LR will be too small for VGG
+        MIN_LR_FOR_VGG = 64  # Minimum LR size to get 16x16 feature maps for VGG relu3_1
+
+        if expected_lr_h < MIN_LR_FOR_VGG or expected_lr_w < MIN_LR_FOR_VGG:
+            print(f"Images too small! Resizing before processing...")
+            print(f"Expected LR ({expected_lr_h}, {expected_lr_w}) < minimum ({MIN_LR_FOR_VGG}, {MIN_LR_FOR_VGG})")
+
+            # Calculate required scale factor
+            scale_h = MIN_LR_FOR_VGG / expected_lr_h if expected_lr_h < MIN_LR_FOR_VGG else 1
+            scale_w = MIN_LR_FOR_VGG / expected_lr_w if expected_lr_w < MIN_LR_FOR_VGG else 1
+            resize_scale = max(scale_h, scale_w)
+
+            # Resize original images to meet requirements
+            new_h_in = int(original_h_in * resize_scale)
+            new_w_in = int(original_w_in * resize_scale)
+            new_h_ref = int(original_h_ref * resize_scale)
+            new_w_ref = int(original_w_ref * resize_scale)
+
+            # Make divisible by 8 for window compatibility
+            new_h_in = ((new_h_in + 7) // 8) * 8
+            new_w_in = ((new_w_in + 7) // 8) * 8
+            new_h_ref = ((new_h_ref + 7) // 8) * 8
+            new_w_ref = ((new_w_ref + 7) // 8) * 8
+
+            print(f"Resizing input from ({original_h_in}, {original_w_in}) to ({new_h_in}, {new_w_in})")
+            print(f"Resizing ref from ({original_h_ref}, {original_w_ref}) to ({new_h_ref}, {new_w_ref})")
+
+            # Resize the images
+            img_in = cv2.resize(img_in, (new_w_in, new_h_in))
+            img_ref = cv2.resize(img_ref, (new_w_ref, new_h_ref))
 
         # Apply mod_crop for scale compatibility
         img_in = mod_crop(img_in, self.scale_factor)
         img_ref = mod_crop(img_ref, self.scale_factor)
 
+        print(f"After mod_crop: input ({img_in.shape[0]}, {img_in.shape[1]}), ref ({img_ref.shape[0]}, {img_ref.shape[1]})")
+
         # Get processed dimensions
         gt_h, gt_w, _ = img_in.shape
         img_ref_h, img_ref_w, _ = img_ref.shape
 
-        # Define minimum dimensions
-        MIN_LR_SIZE = 48  # Minimum LR image dimension
-        MIN_HR_SIZE = 192  # Minimum HR image dimension
-        window_size = 8  # Swin Transformer window size
-
-        # Calculate minimum required dimensions
-        min_gt_h = max(gt_h, MIN_HR_SIZE, img_ref_h)
-        min_gt_w = max(gt_w, MIN_HR_SIZE, img_ref_w)
-
-        # Ensure dimensions are divisible by scale_factor and window_size
-        min_gt_h = ((min_gt_h + max(self.scale_factor, window_size) - 1) // max(self.scale_factor, window_size)) * max(self.scale_factor, window_size)
-        min_gt_w = ((min_gt_w + max(self.scale_factor, window_size) - 1) // max(self.scale_factor, window_size)) * max(self.scale_factor, window_size)
-
-        # Pad images to same size and minimum dimensions
+        # Make both images the same size
+        target_h = max(gt_h, img_ref_h)
+        target_w = max(gt_w, img_ref_w)
         padding = False
-        target_h = min_gt_h
-        target_w = min_gt_w
 
         if img_in.shape[0] != target_h or img_in.shape[1] != target_w:
-            padding = True
             img_in = mmcv.impad(img_in, shape=(target_h, target_w), pad_val=0)
-
-        if img_ref.shape[0] != target_h or img_ref.shape[1] != target_w:
             padding = True
+        if img_ref.shape[0] != target_h or img_ref.shape[1] != target_w:
             img_ref = mmcv.impad(img_ref, shape=(target_h, target_w), pad_val=0)
+            padding = True
 
-        # Update gt dimensions after padding
         gt_h, gt_w = target_h, target_w
 
-        # Create LR versions by downsampling
+        print(f"Final HR dimensions: ({gt_h}, {gt_w})")
+
+        # Calculate LR dimensions after downscaling
         lq_h, lq_w = gt_h // self.scale_factor, gt_w // self.scale_factor
+        print(f"Final LR dimensions: ({lq_h}, {lq_w})")
 
-        # Ensure LR dimensions are large enough for VGG feature extraction
-        # relu3_1 feature maps need at least 16x16, so LR needs at least 64x64
-        MIN_LR_FOR_VGG = 64
-        if lq_h < MIN_LR_FOR_VGG or lq_w < MIN_LR_FOR_VGG:
-            # Increase LR size and recalculate HR size
-            min_lq_h = max(lq_h, MIN_LR_FOR_VGG)
-            min_lq_w = max(lq_w, MIN_LR_FOR_VGG)
+        # Final verification
+        assert lq_h >= MIN_LR_FOR_VGG and lq_w >= MIN_LR_FOR_VGG, \
+            f"LR dimensions ({lq_h}, {lq_w}) are still too small! Minimum required: ({MIN_LR_FOR_VGG}, {MIN_LR_FOR_VGG})"
 
-            # Make LR dimensions divisible by window_size
-            min_lq_h = ((min_lq_h + window_size - 1) // window_size) * window_size
-            min_lq_w = ((min_lq_w + window_size - 1) // window_size) * window_size
-
-            # Recalculate HR dimensions
-            gt_h = min_lq_h * self.scale_factor
-            gt_w = min_lq_w * self.scale_factor
-
-            # Re-pad images if needed
-            img_in = mmcv.impad(img_in, shape=(gt_h, gt_w), pad_val=0)
-            img_ref = mmcv.impad(img_ref, shape=(gt_h, gt_w), pad_val=0)
-
-            padding = True
-            lq_h, lq_w = min_lq_h, min_lq_w
-
-        print(f"Final image dimensions - HR: ({gt_h}, {gt_w}), LR: ({lq_h}, {lq_w})")
+        print(f"=== End Debug ===\n")
 
         # Convert to PIL for bicubic interpolation
         img_in_pil = self._bgr_to_pil(img_in)
