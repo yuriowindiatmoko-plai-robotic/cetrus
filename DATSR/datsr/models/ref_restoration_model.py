@@ -197,7 +197,27 @@ class RefRestorationModel(SRModel):
 
     def optimize_parameters(self, step):
 
-        self.features = self.net_extractor(self.match_img_in, self.img_ref)
+        # CRITICAL FIX: Ensure both images have the same size for feature extraction
+        # The VGG extractor expects both images to be the same resolution
+        if self.match_img_in.shape[2:] != self.img_ref.shape[2:]:
+            print(f"\n=== Feature Extractor Size Mismatch ===")
+            print(f"match_img_in shape: {self.match_img_in.shape}")
+            print(f"img_ref shape: {self.img_ref.shape}")
+
+            # Resize img_ref to match match_img_in
+            import torch.nn.functional as F
+            img_ref_resized = F.interpolate(
+                self.img_ref,
+                size=self.match_img_in.shape[2:],
+                mode='bilinear',
+                align_corners=False
+            )
+            print(f"Resized img_ref from {self.img_ref.shape[2:]} to {img_ref_resized.shape[2:]}")
+            print("=== End Fix ===\n")
+        else:
+            img_ref_resized = self.img_ref
+
+        self.features = self.net_extractor(self.match_img_in, img_ref_resized)
         self.pre_offset, self.img_ref_feat = self.net_map(
             self.features, self.img_ref)
         self.output = self.net_g(self.img_in_lq, self.pre_offset,
@@ -278,7 +298,21 @@ class RefRestorationModel(SRModel):
     def test(self):
         self.net_g.eval()
         with torch.no_grad():
-            self.features = self.net_extractor(self.match_img_in, self.img_ref)
+            # CRITICAL FIX: Ensure both images have the same size for feature extraction
+            # The VGG extractor expects both images to be the same resolution
+            if self.match_img_in.shape[2:] != self.img_ref.shape[2:]:
+                # Resize img_ref to match match_img_in
+                import torch.nn.functional as F
+                img_ref_resized = F.interpolate(
+                    self.img_ref,
+                    size=self.match_img_in.shape[2:],
+                    mode='bilinear',
+                    align_corners=False
+                )
+            else:
+                img_ref_resized = self.img_ref
+
+            self.features = self.net_extractor(self.match_img_in, img_ref_resized)
             self.pre_offset, self.img_ref_feat = self.net_map(self.features, self.img_ref)
             self.output = self.net_g(self.img_in_lq, self.pre_offset, self.img_ref_feat)
 

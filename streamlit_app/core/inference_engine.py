@@ -67,15 +67,6 @@ class InferenceEngine:
             ref_tensor = ref_tensor.to(device)
             lr_up_tensor = lr_up_tensor.to(device)
 
-            print(f"\n=== Inference Debug ===")
-            print(f"Device: {device}")
-            print(f"LR tensor shape: {lr_tensor.shape}")
-            print(f"Ref tensor shape: {ref_tensor.shape}")
-            print(f"LR up tensor shape: {lr_up_tensor.shape}")
-            print(f"LR tensor dtype: {lr_tensor.dtype}")
-            print(f"Ref tensor dtype: {ref_tensor.dtype}")
-            print(f"LR up tensor dtype: {lr_up_tensor.dtype}")
-
             if progress_callback:
                 progress_callback("Running inference...", 0.3)
 
@@ -83,7 +74,6 @@ class InferenceEngine:
             start_time = time.time()
 
             # Prepare data dictionary for DATSR model
-            # Note: The model expects specific input format based on its training
             data = {
                 'img_in_lq': lr_tensor,
                 'img_ref': ref_tensor,
@@ -91,26 +81,11 @@ class InferenceEngine:
                 'img_in': lr_up_tensor  # Add missing key - use bicubic upsampled as ground truth substitute
             }
 
-            print(f"Data dictionary keys: {list(data.keys())}")
-            for key, value in data.items():
-                print(f"  {key}: {value.shape} - dtype: {value.dtype} - device: {value.device}")
-
             if progress_callback:
                 progress_callback("Preparing model data...", 0.4)
 
             # Feed data to model and run inference
-            print("\n=== Before feed_data ===")
-            try:
-                model.feed_data(data)
-                print("Data fed successfully")
-            except Exception as e:
-                print(f"Error in feed_data: {e}")
-                # Try to get more info about the model's internal state
-                if hasattr(model, 'features'):
-                    print(f"Model features type: {type(model.features)}")
-                    if hasattr(model, 'img_ref'):
-                        print(f"img_ref shape: {model.img_ref.shape}")
-                raise
+            model.feed_data(data)
 
             if progress_callback:
                 progress_callback("Running inference...", 0.6)
@@ -146,8 +121,11 @@ class InferenceEngine:
             }
 
         except Exception as e:
+            import traceback
             error_msg = f"Inference failed: {str(e)}"
             print(error_msg)
+            print("Full traceback:")
+            traceback.print_exc()
             return {
                 'success': False,
                 'error': error_msg,
