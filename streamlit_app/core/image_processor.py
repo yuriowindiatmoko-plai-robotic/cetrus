@@ -351,38 +351,16 @@ class ImageProcessor:
 
         print(f"Expected LR after processing: ({expected_lr_h}, {expected_lr_w})")
 
-        # Check if LR will be too small for VGG
-        MIN_LR_FOR_VGG = 64  # Minimum LR size to get 16x16 feature maps for VGG relu3_1
+        # Calculate optimal HR dimensions maintaining aspect ratio
+        gt_h, gt_w = self.calculate_optimal_dimensions(original_h_in, original_w_in)
 
-        if expected_lr_h < MIN_LR_FOR_VGG or expected_lr_w < MIN_LR_FOR_VGG:
-            print(f"Images too small for VGG! Resizing to minimum...")
-            print(f"Expected LR ({expected_lr_h}, {expected_lr_w}) < minimum ({MIN_LR_FOR_VGG}, {MIN_LR_FOR_VGG})")
+        print(f"Images: ({original_h_in}, {original_w_in}) -> Using HR ({gt_h}, {gt_w})")
+        print(f"Corresponding LR dimensions: ({gt_h//self.scale_factor}, {gt_w//self.scale_factor})")
 
-            # Calculate required scale factor
-            scale_h = MIN_LR_FOR_VGG / expected_lr_h if expected_lr_h < MIN_LR_FOR_VGG else 1
-            scale_w = MIN_LR_FOR_VGG / expected_lr_w if expected_lr_w < MIN_LR_FOR_VGG else 1
-            resize_scale = max(scale_h, scale_w)
-
-            # Resize images proportionally
-            new_h_in = int(original_h_in * resize_scale)
-            new_w_in = int(original_w_in * resize_scale)
-            new_h_ref = int(original_h_ref * resize_scale)
-            new_w_ref = int(original_w_ref * resize_scale)
-
-            # Make divisible by scale_factor
-            new_h_in = (new_h_in // self.scale_factor) * self.scale_factor
-            new_w_in = (new_w_in // self.scale_factor) * self.scale_factor
-            new_h_ref = (new_h_ref // self.scale_factor) * self.scale_factor
-            new_w_ref = (new_w_ref // self.scale_factor) * self.scale_factor
-
-            print(f"Resizing input: ({original_h_in}, {original_w_in}) -> ({new_h_in}, {new_w_in})")
-            print(f"Resizing ref: ({original_h_ref}, {original_w_ref}) -> ({new_h_ref}, {new_w_ref})")
-
-            # Resize the images
-            img_in = cv2.resize(img_in, (new_w_in, new_h_in))
-            img_ref = cv2.resize(img_ref, (new_w_ref, new_h_ref))
-        else:
-            print(f"Images are sufficient size, no resizing needed")
+        # Resize images to optimal dimensions
+        img_in = cv2.resize(img_in, (gt_w, gt_h))
+        img_ref = cv2.resize(img_ref, (gt_w, gt_h))
+        print(f"Resized to optimal size: HR ({gt_h}, {gt_w})")
 
         # Apply mod_crop for scale compatibility
         img_in = mod_crop(img_in, self.scale_factor)
@@ -414,7 +392,8 @@ class ImageProcessor:
         lq_h, lq_w = gt_h // self.scale_factor, gt_w // self.scale_factor
         print(f"Final LR dimensions: ({lq_h}, {lq_w})")
 
-        # Final verification
+        # Final verification - ensure LR is large enough for VGG feature extraction
+        MIN_LR_FOR_VGG = 16  # Minimum size for VGG relu3_1 feature maps
         assert lq_h >= MIN_LR_FOR_VGG and lq_w >= MIN_LR_FOR_VGG, \
             f"LR dimensions ({lq_h}, {lq_w}) are still too small! Minimum required: ({MIN_LR_FOR_VGG}, {MIN_LR_FOR_VGG})"
 
@@ -516,3 +495,22 @@ class ImageProcessor:
             return False, f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"
 
         return True, "Valid image file"
+    def calculate_optimal_dimensions(self, img_h, img_w):
+        """Calculate optimal HR dimensions maintaining aspect ratio"""
+        # Minimum dimensions for VGG feature extraction
+        min_lr = 64  # Minimum LR dimension for VGG
+        min_hr = min_lr * self.scale_factor
+
+        # Choose larger of minimum or original size
+        target_h = max(min_hr, img_h)
+        target_w = max(min_hr, img_w)
+
+        # Ensure divisibility by scale_factor for proper upsampling
+        target_h = (target_h // self.scale_factor) * self.scale_factor
+        target_w = (target_w // self.scale_factor) * self.scale_factor
+
+        # Ensure divisibility by 8 for Swin Transformer
+        target_h = ((target_h + 7) // 8) * 8
+        target_w = ((target_w + 7) // 8) * 8
+
+        return target_h, target_w

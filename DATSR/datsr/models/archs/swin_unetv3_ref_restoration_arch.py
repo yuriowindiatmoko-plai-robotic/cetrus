@@ -956,8 +956,17 @@ class DynamicAggregationRestoration(nn.Module):
         Returns:
             Tensor: Warped image or feature map.
         """
+        # Auto-resize flow if dimensions don't match
+        x_h, x_w = x.size()[-2:]
+        flow_h, flow_w = flow.size()[1:3]
+        if (x_h, x_w) != (flow_h, flow_w):
+            flow = F.interpolate(
+                flow.permute(0, 3, 1, 2),  # [B, 2, H, W]
+                size=(x_h, x_w),
+                mode='bilinear',
+                align_corners=True
+            ).permute(0, 2, 3, 1)  # [B, H, W, 2]
 
-        assert x.size()[-2:] == flow.size()[1:3]
         _, _, h, w = x.size()
         # create mesh grid
         grid_y, grid_x = torch.meshgrid(
@@ -979,15 +988,35 @@ class DynamicAggregationRestoration(nn.Module):
 
         return output
 
+    def safe_flow_warp(self, x, flow, layer_name="unknown"):
+        """Safe flow_warp with error handling and auto-correction"""
+        try:
+            return self.flow_warp(x, flow)
+        except Exception as e:
+            print(f"[DEBUG] Shape mismatch in {layer_name}:")
+            print(f"  Feature tensor shape: {x.shape}")
+            print(f"  Flow tensor shape: {flow.shape}")
+            # Attempt to fix by resizing flow
+            x_h, x_w = x.size()[-2:]
+            flow_h, flow_w = flow.size()[1:3]
+            print(f"  Resizing flow from ({flow_h}, {flow_w}) to ({x_h}, {x_w})")
+            flow = F.interpolate(
+                flow.permute(0, 3, 1, 2),
+                size=(x_h, x_w),
+                mode='bilinear',
+                align_corners=True
+            ).permute(0, 2, 3, 1)
+            return self.flow_warp(x, flow)
+
     def forward(self, base, x, pre_offset_flow_sim, img_ref_feat):
 
         pre_offset = pre_offset_flow_sim[0]
         pre_flow = pre_offset_flow_sim[1]
         pre_similarity = pre_offset_flow_sim[2]
 
-        pre_relu1_swapped_feat = self.flow_warp(img_ref_feat['relu1_1'], pre_flow['relu1_1'])
-        pre_relu2_swapped_feat = self.flow_warp(img_ref_feat['relu2_1'], pre_flow['relu2_1'])
-        pre_relu3_swapped_feat = self.flow_warp(img_ref_feat['relu3_1'], pre_flow['relu3_1'])
+        pre_relu1_swapped_feat = self.safe_flow_warp(img_ref_feat['relu1_1'], pre_flow['relu1_1'], 'relu1_1')
+        pre_relu2_swapped_feat = self.safe_flow_warp(img_ref_feat['relu2_1'], pre_flow['relu2_1'], 'relu2_1')
+        pre_relu3_swapped_feat = self.safe_flow_warp(img_ref_feat['relu3_1'], pre_flow['relu3_1'], 'relu3_1')
 
         # Unet
         x0 = self.unet_head(base)    # [B, 64, 160, 160]

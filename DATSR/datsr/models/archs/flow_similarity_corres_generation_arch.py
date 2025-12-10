@@ -137,19 +137,46 @@ class FlowSimCorrespondenceGenerationArch(nn.Module):
         pre_flow['relu1_1'] = torch.cat(flows_relu1, dim=0)
 
         pre_offset = {}
-        pre_offset['relu1_1'] = batch_offset_relu1  # [9, 9, 160, 160, 2]
-        pre_offset['relu2_1'] = batch_offset_relu2  # [9, 9, 80, 80, 2]
-        pre_offset['relu3_1'] = batch_offset_relu3  # [9, 9, 40, 40, 2]
+        pre_offset['relu1_1'] = batch_offset_relu1
+        pre_offset['relu2_1'] = batch_offset_relu2
+        pre_offset['relu3_1'] = batch_offset_relu3
 
         # similarity
         pre_similarity = {}
         pre_similarity['relu3_1'] = torch.stack(similarity_relu3, dim=0)
         pre_similarity['relu2_1'] = torch.stack(similarity_relu2, dim=0)
         pre_similarity['relu1_1'] = torch.stack(similarity_relu1, dim=0)
-        
+
+        # Extract VGG features to get actual dimensions
         img_ref_feat = self.vgg(img_ref_hr)
-        # 'relu1_1': [9, 64, 160, 160]
-        # 'relu2_1': [9, 128, 80, 80]
-        # 'relu3_1': [9, 256, 40, 40]
+
+        # Get actual VGG feature dimensions
+        relu1_dims = img_ref_feat['relu1_1'].shape[2:]  # [H, W] for relu1_1
+        relu2_dims = img_ref_feat['relu2_1'].shape[2:]  # [H, W] for relu2_1
+        relu3_dims = img_ref_feat['relu3_1'].shape[2:]  # [H, W] for relu3_1
+
+        # Resize flows to match actual VGG feature dimensions
+        pre_flow['relu1_1'] = F.interpolate(
+            pre_flow['relu1_1'].permute(0, 3, 1, 2),  # [B, 2, H, W]
+            size=relu1_dims,
+            mode='bilinear',
+            align_corners=True
+        ).permute(0, 2, 3, 1)  # [B, H, W, 2]
+
+        pre_flow['relu2_1'] = F.interpolate(
+            pre_flow['relu2_1'].permute(0, 3, 1, 2),  # [B, 2, H, W]
+            size=relu2_dims,
+            mode='bilinear',
+            align_corners=True
+        ).permute(0, 2, 3, 1)  # [B, H, W, 2]
+
+        # relu3_1 should already match, but ensure it does
+        if pre_flow['relu3_1'].shape[1:3] != relu3_dims:
+            pre_flow['relu3_1'] = F.interpolate(
+                pre_flow['relu3_1'].permute(0, 3, 1, 2),  # [B, 2, H, W]
+                size=relu3_dims,
+                mode='bilinear',
+                align_corners=True
+            ).permute(0, 2, 3, 1)  # [B, H, W, 2]
 
         return [pre_offset, pre_flow, pre_similarity], img_ref_feat
