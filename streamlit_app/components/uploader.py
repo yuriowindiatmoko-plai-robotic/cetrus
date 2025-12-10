@@ -50,7 +50,7 @@ class ImageUploader:
 
         if uploaded_file is not None:
             # Display image preview
-            st.image(uploaded_file, caption=f"Uploaded {image_type}", use_column_width=True)
+            st.image(uploaded_file, caption=f"Uploaded {image_type}", use_container_width=True)
 
             # Display file info
             self._display_file_info(uploaded_file)

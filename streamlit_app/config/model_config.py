@@ -7,6 +7,10 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'DATSR'))
 
+# Get absolute path to DATSR directory
+DATSR_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'DATSR'))
+PRETRAINED_MODEL_DIR = os.path.join(DATSR_ROOT, 'experiments', 'pretrained_model')
+
 def get_model_config(model_type="mse", device="cuda"):
     """Get model configuration for specified model type"""
 
@@ -44,7 +48,7 @@ def get_model_config(model_type="mse", device="cuda"):
         },
 
         'path': {
-            'pretrain_model_feature_extractor': 'DATSR/experiments/pretrained_model/feature_extraction.pth',
+            'pretrain_model_feature_extractor': os.path.join(PRETRAINED_MODEL_DIR, 'feature_extraction.pth'),
             'strict_load': True,
             'root': 'experiments/test/'
         }
@@ -52,9 +56,9 @@ def get_model_config(model_type="mse", device="cuda"):
 
     # Model-specific paths
     if model_type == "mse":
-        base_config['path']['pretrain_model_g'] = 'DATSR/experiments/pretrained_model/restoration_mse.pth'
+        base_config['path']['pretrain_model_g'] = os.path.join(PRETRAINED_MODEL_DIR, 'restoration_mse.pth')
     elif model_type == "gan":
-        base_config['path']['pretrain_model_g'] = 'DATSR/experiments/pretrained_model/restoration_gan.pth'
+        base_config['path']['pretrain_model_g'] = os.path.join(PRETRAINED_MODEL_DIR, 'restoration_gan.pth')
     else:
         raise ValueError(f"Unsupported model type: {model_type}")
 

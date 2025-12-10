@@ -103,17 +103,17 @@ class ImageViewer:
             if results.get('bicubic_image') is not None:
                 st.image(results['bicubic_image'],
                         caption="Bicubic Upscaled",
-                        use_column_width=True)
+                        use_container_width=True)
             else:
                 st.image(results['lr_image'],
                         caption="Low Resolution Input",
-                        use_column_width=True)
+                        use_container_width=True)
 
         with col2:
             st.markdown("**DATSR Result**")
             st.image(results['sr_image'],
                     caption="DATSR Super-Resolution",
-                    use_column_width=True)
+                    use_container_width=True)
 
     def _render_slider_comparison(self, results):
         """Render interactive slider comparison"""
@@ -125,10 +125,10 @@ class ImageViewer:
 
         with col1:
             st.image(results['bicubic_image'] if results.get('bicubic_image') is not None else results['lr_image'],
-                    caption="Before", use_column_width=True)
+                    caption="Before", use_container_width=True)
 
         with col2:
-            st.image(results['sr_image'], caption="After", use_column_width=True)
+            st.image(results['sr_image'], caption="After", use_container_width=True)
 
         st.info("🚀 Advanced slider comparison coming soon!")
 
@@ -163,22 +163,22 @@ class ImageViewer:
         tab1, tab2, tab3, tab4 = st.tabs(["📱 Original LR", "🖼️ Reference", "⬆️ Bicubic", "✨ Super-Resolution"])
 
         with tab1:
-            st.image(results['lr_image'], caption="Original Low Resolution", use_column_width=True)
+            st.image(results['lr_image'], caption="Original Low Resolution", use_container_width=True)
             self._add_image_controls("lr", results['lr_image'])
 
         with tab2:
-            st.image(results['ref_image'], caption="Reference Image", use_column_width=True)
+            st.image(results['ref_image'], caption="Reference Image", use_container_width=True)
             self._add_image_controls("ref", results['ref_image'])
 
         with tab3:
             if results.get('bicubic_image') is not None:
-                st.image(results['bicubic_image'], caption="Bicubic Upscaled", use_column_width=True)
+                st.image(results['bicubic_image'], caption="Bicubic Upscaled", use_container_width=True)
                 self._add_image_controls("bicubic", results['bicubic_image'])
             else:
                 st.info("Bicubic image not available")
 
         with tab4:
-            st.image(results['sr_image'], caption="DATSR Super-Resolution", use_column_width=True)
+            st.image(results['sr_image'], caption="DATSR Super-Resolution", use_container_width=True)
             self._add_image_controls("sr", results['sr_image'])
 
     def _add_image_controls(self, prefix, image):
@@ -194,7 +194,7 @@ class ImageViewer:
             new_width = int(width * zoom_level)
 
             resized_image = cv2.resize(image, (new_width, new_height))
-            st.image(resized_image, caption=f"Zoomed {zoom_level}x", use_column_width=False)
+            st.image(resized_image, caption=f"Zoomed {zoom_level}x", width=None)
 
     def _render_download_section(self, results):
         """Render download options"""

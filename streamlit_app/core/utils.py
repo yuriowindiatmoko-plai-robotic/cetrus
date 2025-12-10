@@ -148,7 +148,8 @@ def check_cuda_availability():
 
 def validate_model_files():
     """Check if pretrained model files exist"""
-    base_path = os.path.join(os.path.dirname(__file__), '..', '..', 'DATSR', 'experiments', 'pretrained_model')
+    # Use absolute path for reliable model file detection
+    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'DATSR', 'experiments', 'pretrained_model'))
 
     required_files = [
         'feature_extraction.pth',
