@@ -353,9 +353,45 @@ class ImageProcessor:
 
         # Check if LR will be too small for VGG
         MIN_LR_FOR_VGG = 64  # Minimum LR size to get 16x16 feature maps for VGG relu3_1
+        OPTIMAL_LR_SIZE = 160  # DATSR was trained on 160x160 LR images (gt_size=160)
 
-        if expected_lr_h < MIN_LR_FOR_VGG or expected_lr_w < MIN_LR_FOR_VGG:
-            print(f"Images too small! Resizing before processing...")
+        # Resize to optimal size if needed
+        if expected_lr_h < OPTIMAL_LR_SIZE or expected_lr_w < OPTIMAL_LR_SIZE:
+            print(f"Images smaller than optimal! Resizing before processing...")
+            print(f"Expected LR ({expected_lr_h}, {expected_lr_w}) < optimal ({OPTIMAL_LR_SIZE}, {OPTIMAL_LR_SIZE})")
+
+            # Calculate required scale factor to reach optimal size
+            # Use max to ensure we reach the optimal size for both dimensions
+            scale_h = OPTIMAL_LR_SIZE / expected_lr_h if expected_lr_h < OPTIMAL_LR_SIZE else 1
+            scale_w = OPTIMAL_LR_SIZE / expected_lr_w if expected_lr_w < OPTIMAL_LR_SIZE else 1
+            resize_scale = max(scale_h, scale_w)
+
+            # Resize to square dimensions (OPTIMAL_LR_SIZE x OPTIMAL_LR_SIZE for LR)
+            # This ensures VGG features are square (40x40)
+            target_lr_size = OPTIMAL_LR_SIZE
+            target_hr_size = target_lr_size * self.scale_factor
+
+            # Resize original images to square HR dimensions
+            new_h_in = target_hr_size
+            new_w_in = target_hr_size
+            new_h_ref = target_hr_size
+            new_w_ref = target_hr_size
+
+            # Make divisible by 8 for window compatibility
+            new_h_in = ((new_h_in + 7) // 8) * 8
+            new_w_in = ((new_w_in + 7) // 8) * 8
+            new_h_ref = ((new_h_ref + 7) // 8) * 8
+            new_w_ref = ((new_w_ref + 7) // 8) * 8
+
+            print(f"Resizing input to square: ({original_h_in}, {original_w_in}) -> ({new_h_in}, {new_w_in})")
+            print(f"Resizing ref to square: ({original_h_ref}, {original_w_ref}) -> ({new_h_ref}, {new_w_ref})")
+
+            # Resize the images
+            img_in = cv2.resize(img_in, (new_w_in, new_h_in))
+            img_ref = cv2.resize(img_ref, (new_w_ref, new_h_ref))
+        elif expected_lr_h < MIN_LR_FOR_VGG or expected_lr_w < MIN_LR_FOR_VGG:
+            # Fallback to minimum if we can't reach optimal
+            print(f"Images too small! Resizing to minimum...")
             print(f"Expected LR ({expected_lr_h}, {expected_lr_w}) < minimum ({MIN_LR_FOR_VGG}, {MIN_LR_FOR_VGG})")
 
             # Calculate required scale factor
